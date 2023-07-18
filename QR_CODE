@@ -1,0 +1,66 @@
+DATA: lv_matid TYPE /scwm/de_matid.
+DATA: ls_huhdr TYPE /scwm/huhdr,
+      ls_quan  TYPE /scwm/quan.
+
+READ TABLE hu_header INTO DATA(ls_header) INDEX 1.
+IF sy-subrc EQ 0.
+
+  qr_barcode = ls_header-huident.
+* Generate QR_BITMAP
+  CALL METHOD cl_rstx_barcode_renderer=>qr_code
+    EXPORTING
+      i_module_size      = 20
+      i_mode             = 'U'
+      i_error_correction = 'M'
+*     i_rotation         = 0
+      i_barcode_text     = qr_barcode "string input
+    IMPORTING
+      e_bitmap           = qr_bitmap. "bitmap xstring
+
+  SELECT SINGLE *
+    FROM /scwm/huhdr
+    INTO ls_huhdr
+    WHERE huident EQ ls_header-huident.
+
+  SELECT SINGLE *
+    FROM /scwm/quan
+    INTO ls_quan
+    WHERE guid_parent EQ ls_huhdr-guid_hu.
+
+  SELECT SINGLE matid
+    FROM /scwm/stock_iw01
+    INTO lv_matid
+    WHERE guid_stock EQ ls_quan-guid_stock.
+
+  IF lv_matid IS INITIAL.
+    SELECT SINGLE matid
+      FROM /scwm/stock_iw02
+      INTO lv_matid
+      WHERE guid_stock EQ ls_quan-guid_stock.
+    IF lv_matid IS INITIAL.
+      SELECT SINGLE matid
+        FROM /scwm/stock_iw03
+        INTO lv_matid
+        WHERE guid_stock EQ ls_quan-guid_stock.
+      IF lv_matid IS INITIAL.
+        SELECT SINGLE matid
+          FROM /scwm/stock_iw04
+          INTO lv_matid
+          WHERE guid_stock EQ ls_quan-guid_stock.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+  SELECT SINGLE matnr
+    FROM mara
+    INTO gv_matnr
+    WHERE scm_matid_guid16 EQ lv_matid.
+
+  SELECT SINGLE maktx
+    FROM makt
+    INTO gv_maktx
+    WHERE matnr EQ gv_matnr
+      AND spras EQ 'S'.
+ENDIF.
+
+CLEAR: ls_header, ls_huhdr, ls_quan, lv_matid.
