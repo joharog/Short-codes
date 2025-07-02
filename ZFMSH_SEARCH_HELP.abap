@@ -1,5 +1,4 @@
-// Funcion logica para implementar ayuda de busqueda en CustomFields
-// atravez de 
+// Funcion logica para implementar ayuda de busqueda en Customfields
 
 Example:
 Table: EBAN->CI_EBANDB->ZZWORK_ORDER
