@@ -1,13 +1,15 @@
 // Funcion logica para implementar ayuda de busqueda en Customfields
 
 Example:
-Table: EBAN->CI_EBANDB->ZZWORK_ORDER
-Explicit search help interface to field > ZSH_WORK_ORDER
+Table: EBAN->CI_EBANDB->ZZCUSTOMER
+Explicit search help interface to field > ZSH_CUSTOMER
 Elementary Help: ZSH_WORK_ORDER 
-Parameter: ZZWORK_ORDER |X X 1 1| ZMM_WORKORDER
+Parameter: ZZCUSTOMER	X X 1	1 X	ZMM_CUSTOMER
+           NAME1	      X 2	2 X NAME1_GP
+           NAME2	      X 3	3	X NAME2_GP
 
-Function Group: ZFGSH_WORK_ORDER
-Function module: ZFMSH_WORK_ORDER
+Function Group: ZFGSH_CUSTOMER
+Function module: ZFMSH_CUSTOMER
 
 *"--------------------------------------------------------------------
 
@@ -23,24 +25,45 @@ FUNCTION zfmsh_work_order.
 *"--------------------------------------------------------------------
   TYPE-POOLS: shlp.
 
-  DATA: lt_aufk TYPE STANDARD TABLE OF aufk,
-        ls_aufk TYPE aufk.
+* Nueva logica de busqueda documentacion funcional:
+* MRO_STP_D-077.01 Custom fields PR_Func_and_Tec_Spec__EN_V002
 
-  IF lt_aufk[] IS INITIAL.
+  DATA: lt_iflo TYPE STANDARD TABLE OF iflo,
+        lt_ihpa TYPE STANDARD TABLE OF ihpa,
+        ls_kna1 TYPE kna1,
+        lt_kna1 TYPE STANDARD TABLE OF kna1.
 
-    SELECT * FROM aufk INTO TABLE lt_aufk.
-    SORT lt_aufk BY aufnr.
+* Se creo la vista ZVS_TAIL_NUMBER para exportar el memory ID.
+  DATA: tail_number TYPE zmm_tailnum30.
 
-    IF record_tab[] IS INITIAL.
-      LOOP AT lt_aufk INTO ls_aufk.
-        IF ls_aufk-aufnr IS NOT INITIAL.
-          record_tab-string = ls_aufk-aufnr.
-          APPEND record_tab.
+  IF callcontrol-step = 'DISP'.
+
+    IMPORT tail_number FROM MEMORY ID 'TAIL_N'.
+    IF lt_iflo[] IS INITIAL.
+      SELECT * FROM iflo INTO TABLE lt_iflo
+        WHERE tplnr EQ tail_number.
+      IF sy-subrc EQ 0.
+        SELECT * FROM ihpa INTO TABLE lt_ihpa
+          FOR ALL ENTRIES IN lt_iflo
+           WHERE objnr EQ lt_iflo-objnr
+             AND parvw EQ 'AG'.
+        IF sy-subrc EQ 0.
+          SELECT * FROM kna1 INTO TABLE lt_kna1
+            FOR ALL ENTRIES IN lt_ihpa
+            WHERE kunnr EQ lt_ihpa-parnr(10).
+
+          SORT lt_kna1 BY kunnr.
+          LOOP AT lt_kna1 INTO ls_kna1.
+            record_tab-string = |{ ls_kna1-kunnr } { ls_kna1-name1 } { ls_kna1-name2 }|.
+            APPEND record_tab.
+            CLEAR record_tab.
+          ENDLOOP.
         ENDIF.
-      ENDLOOP.
+      ENDIF.
     ENDIF.
+
   ENDIF.
 
-  CLEAR: record_tab-string.
+  FREE MEMORY ID 'TAIL_N'.
 
 ENDFUNCTION.
